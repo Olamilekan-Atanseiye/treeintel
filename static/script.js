@@ -150,9 +150,30 @@ identifyBtn.addEventListener("click", async () => {
   formData.append("image", selectedFile);
 
   try {
-    const response = await fetch("/predict", { method: "POST", body: formData });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Prediction failed.");
+    const response = await fetch("/predict", {
+    method: "POST",
+    body: formData
+});
+
+const responseText = await response.text();
+
+console.log("Prediction HTTP status:", response.status);
+console.log("Prediction raw response:", responseText);
+
+let data;
+
+try {
+    data = JSON.parse(responseText);
+} catch (jsonError) {
+    throw new Error(
+        `Server returned an invalid response (HTTP ${response.status}). ` +
+        `Response: ${responseText || "[empty response]"}`
+    );
+}
+
+if (!response.ok) {
+    throw new Error(data.error || "Prediction failed.");
+}
 
     const elapsedMs = Math.round(performance.now() - t0);
     await logReadout(data, elapsedMs);
@@ -264,13 +285,30 @@ async function startKnowledgeChat(species) {
 
   try {
     const response = await fetch("/knowledge/overview", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ species }),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "Could not load knowledge brief.");
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ species }),
+});
 
+const responseText = await response.text();
+
+console.log("Knowledge HTTP status:", response.status);
+console.log("Knowledge raw response:", responseText);
+
+let data;
+
+try {
+    data = JSON.parse(responseText);
+} catch (jsonError) {
+    throw new Error(
+        `Knowledge endpoint returned an invalid response (HTTP ${response.status}). ` +
+        `Response: ${responseText || "[empty response]"}`
+    );
+}
+
+if (!response.ok) {
+    throw new Error(data.error || "Could not load knowledge brief.");
+}
     if (!data.available) {
       pending.textContent = `I don't have documentation connected for ${formatSpeciesName(species)} yet (${data.reason}). You can still ask, but I may not be able to answer accurately.`;
       pending.className = "chat-bubble assistant";
@@ -319,9 +357,25 @@ chatForm.addEventListener("submit", async (e) => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ species: currentSpecies, question }),
     });
-    const data = await response.json();
-    if (!response.ok || data.error) throw new Error(data.error || "Something went wrong.");
+    const responseText = await response.text();
 
+console.log("Knowledge Ask HTTP status:", response.status);
+console.log("Knowledge Ask raw response:", responseText);
+
+let data;
+
+try {
+    data = JSON.parse(responseText);
+} catch (jsonError) {
+    throw new Error(
+        `Knowledge server returned an invalid response (HTTP ${response.status}). ` +
+        `Response: ${responseText || "[empty response]"}`
+    );
+}
+
+if (!response.ok || data.error) {
+    throw new Error(data.error || "Something went wrong.");
+}
     pending.textContent = data.answer;
     pending.className = "chat-bubble assistant";
   } catch (err) {
