@@ -150,13 +150,28 @@ identifyBtn.addEventListener("click", async () => {
   formData.append("image", selectedFile);
 
   try {
-    const response = await fetch("/predict", {
+const response = await fetch("/predict", {
     method: "POST",
     body: formData
 });
 
 const responseText = await response.text();
 
+let data;
+
+try {
+    data = responseText ? JSON.parse(responseText) : {};
+} catch (parseError) {
+    throw new Error(
+        `Server returned invalid JSON (HTTP ${response.status}). Response: ${responseText || "[empty response]"}`
+    );
+}
+
+if (!response.ok) {
+    throw new Error(
+        data.error || `Prediction failed (HTTP ${response.status}).`
+    );
+}
 console.log("Prediction HTTP status:", response.status);
 console.log("Prediction raw response:", responseText);
 

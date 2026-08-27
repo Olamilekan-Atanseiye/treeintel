@@ -52,7 +52,7 @@ if not MODEL_PATH.exists():
     )
 
     print("Model downloaded to:", downloaded_model)
-    
+
 IMG_SIZE = (224, 224)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB upload limit
@@ -150,35 +150,99 @@ def index():
 
 @app.route("/predict", methods=["POST"])
 def predict():
-    if "image" not in request.files:
-        return jsonify({"error": "No image file included in the request."}), 400
-
-    file = request.files["image"]
-
-    if file.filename == "":
-        return jsonify({"error": "No file selected."}), 400
-
-    if not allowed_file(file.filename):
-        return jsonify({
-            "error": f"Unsupported file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
-        }), 400
+    print("=" * 60, flush=True)
+    print("PREDICT REQUEST RECEIVED", flush=True)
 
     try:
-        pil_image = Image.open(io.BytesIO(file.read()))
-    except Exception:
-        return jsonify({"error": "Could not read image file. It may be corrupted."}), 400
+        if "image" not in request.files:
+            print("ERROR: No image file", flush=True)
+            return jsonify({
+                "error": "No image file included in the request."
+            }), 400
 
-    try:
-        species, confidence, top5 = predict_species(pil_image)
+        file = request.files["image"]
+
+        print(f"Filename: {file.filename}", flush=True)
+        print(f"Content type: {file.content_type}", flush=True)
+
+        if file.filename == "":
+            return jsonify({
+                "error": "No file selected."
+            }), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({
+                "error": f"Unsupported file type. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
+            }), 400
+
+        print("Reading image...", flush=True)
+
+        image_bytes = file.read()
+
+        print(f"Image size: {len(image_bytes)} bytes", flush=True)
+
+        try:
+            pil_image = Image.open(io.BytesIO(image_bytes))
+            print(
+                f"Image opened successfully: {pil_image.size}, mode={pil_image.mode}",
+                flush=True
+            )
+
+            # Force image loading before prediction
+            pil_image.load()
+
+        except Exception as e:
+            print(f"IMAGE ERROR: {repr(e)}", flush=True)
+
+            return jsonify({
+                "error": f"Could not read image file: {str(e)}"
+            }), 400
+
+        print("Starting model prediction...", flush=True)
+
+        try:
+            species, confidence, top5 = predict_species(pil_image)
+
+            print("Prediction completed!", flush=True)
+            print(f"Species: {species}", flush=True)
+            print(f"Confidence: {confidence}", flush=True)
+
+        except Exception as e:
+            print(f"PREDICTION ERROR: {repr(e)}", flush=True)
+
+            import traceback
+            traceback.print_exc()
+
+            return jsonify({
+                "error": f"Prediction failed: {str(e)}"
+            }), 500
+
+        result = {
+            "species": species,
+            "confidence": round(float(confidence), 2),
+            "top5": [
+                {
+                    "species": t["species"],
+                    "confidence": round(float(t["confidence"]), 2)
+                }
+                for t in top5
+            ]
+        }
+
+        print("Returning prediction JSON:", result, flush=True)
+        print("=" * 60, flush=True)
+
+        return jsonify(result)
+
     except Exception as e:
-        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+        print(f"UNEXPECTED /predict ERROR: {repr(e)}", flush=True)
 
-    return jsonify({
-        "species": species,
-        "confidence": round(confidence, 2),
-        "top5": [{"species": t["species"], "confidence": round(t["confidence"], 2)} for t in top5],
-    })
+        import traceback
+        traceback.print_exc()
 
+        return jsonify({
+            "error": f"Unexpected server error: {str(e)}"
+        }), 500
 
 @app.route("/knowledge/overview", methods=["POST"])
 def knowledge_overview():
