@@ -20,6 +20,7 @@ import numpy as np
 from flask import Flask, render_template, request, jsonify
 from PIL import Image
 from tensorflow.keras.models import load_model
+from werkzeug.exceptions import RequestEntityTooLarge
 
 import knowledge_engine
 
@@ -56,6 +57,10 @@ if not MODEL_PATH.exists():
 IMG_SIZE = (224, 224)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB upload limit
+# A compressed camera image can occupy far more memory once decoded. Keep the
+# request small enough for a CPU-only web worker while the TensorFlow model is
+# resident in memory.
+MAX_IMAGE_PIXELS = 12_000_000
 
 # =====================================================
 # CLASS NAMES
@@ -84,6 +89,13 @@ CLASS_NAMES = [
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_CONTENT_LENGTH
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_large_upload(_error):
+    return jsonify({
+        "error": "Image file is too large. Maximum upload size is 25 MB."
+    }), 413
 
 print("=" * 60)
 print("Loading model from:", MODEL_PATH)
@@ -182,14 +194,27 @@ def predict():
         print(f"Image size: {len(image_bytes)} bytes", flush=True)
 
         try:
-            pil_image = Image.open(io.BytesIO(image_bytes))
-            print(
-                f"Image opened successfully: {pil_image.size}, mode={pil_image.mode}",
-                flush=True
-            )
+            with Image.open(io.BytesIO(image_bytes)) as uploaded_image:
+                image_pixels = uploaded_image.width * uploaded_image.height
+                print(
+                    f"Image opened successfully: {uploaded_image.size}, "
+                    f"mode={uploaded_image.mode}",
+                    flush=True
+                )
 
-            # Force image loading before prediction
-            pil_image.load()
+                if image_pixels > MAX_IMAGE_PIXELS:
+                    return jsonify({
+                        "error": (
+                            "Image resolution is too large for analysis. "
+                            "Please upload an image no larger than 12 megapixels."
+                        )
+                    }), 413
+
+                # Decode and retain only the model-sized RGB image. This avoids
+                # holding a full-resolution photo alongside TensorFlow during
+                # prediction, which can cause a small Render worker to restart.
+                uploaded_image.thumbnail(IMG_SIZE, Image.Resampling.LANCZOS)
+                pil_image = uploaded_image.convert("RGB")
 
         except Exception as e:
             print(f"IMAGE ERROR: {repr(e)}", flush=True)
