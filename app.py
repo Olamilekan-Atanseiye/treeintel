@@ -31,13 +31,16 @@ BASE_DIR = Path(__file__).resolve().parent
 
 # Model ships inside the project (relative path) instead of a
 # hardcoded machine-specific path. Place your retrained .h5 file at:
-#   models/Image_classifier_model.h5
+# models/Image_classifier_model.h5
+
 MODEL_PATH = BASE_DIR / "models" / "Image_classifier_model.h5"
 
-HF_REPO_ID = "Olamilekan-Atanseiye/treeintel-model"
+HF_REPO_ID = "Olamilekan20/treeIntel"
+
 HF_FILENAME = "Image_classifier_model.h5"
 
 if not MODEL_PATH.exists():
+
     print("Model not found locally. Downloading from Hugging Face...")
 
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +52,7 @@ if not MODEL_PATH.exists():
     )
 
     print("Model downloaded to:", downloaded_model)
-
+    
 IMG_SIZE = (224, 224)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB upload limit
