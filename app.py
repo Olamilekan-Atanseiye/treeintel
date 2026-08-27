@@ -3,7 +3,7 @@ TreeIntel Species Classifier - Flask Web Application
 =================================================
 Serves an upload page where a user submits a leaf/plant image and
 receives the predicted species + confidence score from a trained
-Keras (.h5) CNN model.
+TensorFlow Lite CNN model.
 
 Run locally:
     pip install -r requirements.txt
@@ -13,13 +13,11 @@ Then open http://127.0.0.1:5000 in a browser.
 
 import io
 import os
-import uuid
 from pathlib import Path
-from huggingface_hub import hf_hub_download
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from PIL import Image
-from tensorflow.keras.models import load_model
+from tflite_runtime.interpreter import Interpreter
 from werkzeug.exceptions import RequestEntityTooLarge
 
 import knowledge_engine
@@ -30,29 +28,9 @@ import knowledge_engine
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Model ships inside the project (relative path) instead of a
-# hardcoded machine-specific path. Place your retrained .h5 file at:
-# models/Image_classifier_model.h5
-
-MODEL_PATH = BASE_DIR / "models" / "Image_classifier_model.h5"
-
-HF_REPO_ID = "Olamilekan20/treeIntel"
-
-HF_FILENAME = "Image_classifier_model.h5"
-
-if not MODEL_PATH.exists():
-
-    print("Model not found locally. Downloading from Hugging Face...")
-
-    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    downloaded_model = hf_hub_download(
-        repo_id=HF_REPO_ID,
-        filename=HF_FILENAME,
-        local_dir=str(MODEL_PATH.parent)
-    )
-
-    print("Model downloaded to:", downloaded_model)
+# The TensorFlow Lite model is committed with the app so Render does not need
+# the full TensorFlow package or an external model download at runtime.
+MODEL_PATH = BASE_DIR / "models" / "Image_classifier_model.tflite"
 
 IMG_SIZE = (224, 224)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
@@ -98,17 +76,20 @@ def handle_large_upload(_error):
     }), 413
 
 print("=" * 60)
-print("Loading model from:", MODEL_PATH)
+print("Loading TensorFlow Lite model from:", MODEL_PATH)
 
 if not MODEL_PATH.exists():
     raise FileNotFoundError(
         f"Model file not found at {MODEL_PATH}.\n"
-        "Copy your .h5 file into the 'models' folder before starting the app."
+        "Run scripts/convert_model_to_tflite.py and commit the generated model."
     )
 
-model = load_model(str(MODEL_PATH))
+interpreter = Interpreter(model_path=str(MODEL_PATH), num_threads=1)
+interpreter.allocate_tensors()
+input_details = interpreter.get_input_details()[0]
+output_details = interpreter.get_output_details()[0]
 
-model_output_units = model.output_shape[-1]
+model_output_units = int(output_details["shape"][-1])
 if model_output_units != len(CLASS_NAMES):
     raise ValueError(
         f"CLASS_NAMES has {len(CLASS_NAMES)} entries but the model's output "
@@ -136,7 +117,10 @@ def predict_species(pil_image: Image.Image):
     img_array = np.asarray(img).astype("float32") / 255.0
     img_array = np.expand_dims(img_array, axis=0)
 
-    prediction = model.predict(img_array, verbose=0)
+    input_tensor = _to_model_input(img_array)
+    interpreter.set_tensor(input_details["index"], input_tensor)
+    interpreter.invoke()
+    prediction = _from_model_output(interpreter.get_tensor(output_details["index"]))
     predicted_index = int(np.argmax(prediction))
     predicted_species = CLASS_NAMES[predicted_index]
     confidence = float(prediction[0][predicted_index] * 100)
@@ -149,6 +133,29 @@ def predict_species(pil_image: Image.Image):
     ]
 
     return predicted_species, confidence, top5
+
+
+def _to_model_input(image_array: np.ndarray) -> np.ndarray:
+    """Convert normalized float pixels to the TensorFlow Lite input dtype."""
+    dtype = input_details["dtype"]
+    if np.issubdtype(dtype, np.floating):
+        return image_array.astype(dtype)
+
+    scale, zero_point = input_details["quantization"]
+    if not scale:
+        raise ValueError("Quantized TensorFlow Lite input is missing quantization data.")
+    return np.round(image_array / scale + zero_point).astype(dtype)
+
+
+def _from_model_output(output: np.ndarray) -> np.ndarray:
+    """Return TensorFlow Lite probabilities as float values."""
+    if np.issubdtype(output.dtype, np.floating):
+        return output.astype("float32")
+
+    scale, zero_point = output_details["quantization"]
+    if not scale:
+        raise ValueError("Quantized TensorFlow Lite output is missing quantization data.")
+    return (output.astype("float32") - zero_point) * scale
 
 
 # =====================================================
@@ -337,7 +344,7 @@ def knowledge_ask():
 def health():
     return jsonify({
         "status": "ok",
-        "model_loaded": model is not None,
+        "model_loaded": interpreter is not None,
         "num_classes": len(CLASS_NAMES),
         "knowledge_base_ready": knowledge_engine.knowledge_base_ready(),
     })
