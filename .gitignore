@@ -1,0 +1,43 @@
+# Environment / secrets
+
+.env.example
+
+# Python virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment/secrets
+.env
+
+# ML models
+models/*.h5
+models/*.keras
+models/*.pt
+models/*.pth
+
+# Image dataset
+Species_JPG/
+
+# Local/generated data
+mnt/
+uploads/
+
+# ChromaDB generated database
+knowledge_base/chroma_db/
+
+# Local cache
+knowledge_base/overview_cache/
+
+# Windows/PowerShell cache
+Microsoft/
+
+# IDE
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/

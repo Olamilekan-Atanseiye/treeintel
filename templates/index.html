@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TreeIntel — Species Identification</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<canvas id="atmosphere"></canvas>
+<div class="grain"></div>
+
+<!-- ============ NAV ============ -->
+<nav class="navbar" id="navbar">
+  <a href="#hero" class="nav-logo">
+    <span class="logo-mark">◈</span>
+    <span class="logo-text">Tree<strong>Intel</strong></span>
+  </a>
+  <div class="nav-links">
+    <a href="#hero">Home</a>
+    <a href="#dashboard">Species</a>
+    <a href="#carbon">Carbon Intelligence</a>
+    <a href="#knowledge">AI Knowledge</a>
+    <a href="#about">About</a>
+    <a href="#contact">Contact</a>
+  </div>
+  <a href="#scan" class="nav-cta">Identify a Tree</a>
+  <button class="nav-burger" id="navBurger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+<div class="nav-mobile" id="navMobile">
+  <a href="#hero">Home</a>
+  <a href="#dashboard">Species</a>
+  <a href="#carbon">Carbon Intelligence</a>
+  <a href="#knowledge">AI Knowledge</a>
+  <a href="#about">About</a>
+  <a href="#contact">Contact</a>
+  <a href="#scan" class="nav-cta">Identify a Tree</a>
+</div>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="hero">
+  <div class="hero-veil"></div>
+  <div class="hero-rings" aria-hidden="true">
+    <span></span><span></span><span></span>
+  </div>
+  <div class="hero-content">
+    <span class="eyebrow-pill">Tropical African Forestry &middot; Computer Vision</span>
+    <h1 class="hero-title">
+      AI&#8209;Powered Tree<br>Species Identification
+    </h1>
+    <p class="hero-sub">
+      Photograph a leaf. Let the model read what generations of foresters
+      once needed a hand lens and a field guide to see.
+    </p>
+    <div class="hero-actions">
+      <a href="#scan" class="btn-glow">
+        <span>Upload Leaf Image</span>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
+      <a href="#dashboard" class="btn-ghost">See how it works</a>
+    </div>
+  </div>
+  <div class="hero-scroll-cue">
+    <span></span>
+    <p>Scroll</p>
+  </div>
+</header>
+
+<!-- ============ SCAN / UPLOAD STATION ============ -->
+<section class="scan-station" id="scan">
+  <div class="section-heading">
+    <span class="eyebrow">01 — Scanning Station</span>
+    <h2>Upload a specimen</h2>
+    <p>Leaf, bark, fruit, or whole-canopy photos all work. Clear lighting and a plain background improve accuracy.</p>
+  </div>
+
+  <div class="scan-grid">
+    <!-- Left: upload -->
+    <div class="scan-upload glass-panel">
+      <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a specimen image">
+        <input type="file" id="fileInput" accept="image/png, image/jpeg, image/webp" hidden>
+        <div id="dropzoneContent" class="dropzone-content">
+          <div class="scan-icon">
+            <svg viewBox="0 0 64 64" fill="none">
+              <circle cx="32" cy="32" r="26" stroke="currentColor" stroke-width="1.5" opacity="0.35"/>
+              <path d="M32 46C32 46 16 36 16 22C16 13 23 7 32 7C41 7 48 13 48 22C48 36 32 46 32 46Z" stroke="currentColor" stroke-width="2"/>
+              <path d="M32 46V16" stroke="currentColor" stroke-width="2"/>
+            </svg>
+          </div>
+          <p class="drop-instruction">Drag a photo here, or <span class="link-text">browse files</span></p>
+          <p class="drop-meta">JPG · PNG · WEBP — up to 25 MB</p>
+        </div>
+        <img id="previewImg" class="preview-img" hidden alt="Specimen preview">
+        <div class="scan-frame" aria-hidden="true">
+          <span class="corner tl"></span><span class="corner tr"></span>
+          <span class="corner bl"></span><span class="corner br"></span>
+          <span class="scan-line" id="scanLine"></span>
+        </div>
+      </div>
+
+      <button id="identifyBtn" class="btn-glow full-width" disabled>
+        <span id="identifyBtnText">Identify Specimen</span>
+      </button>
+      <p id="errorMsg" class="error-msg" hidden></p>
+      <p id="statusMsg" class="status-msg" hidden></p>
+    </div>
+
+    <!-- Right: live readout -->
+    <div class="scan-readout glass-panel">
+      <div class="readout-header">
+        <span class="pulse-dot" id="pulseDot"></span>
+        <span id="readoutStatus">Awaiting specimen</span>
+      </div>
+      <div class="readout-body" id="readoutBody">
+        <p class="readout-placeholder">
+          The model's read-out will stream here — detected class, confidence
+          trajectory, and inference time — once a specimen is submitted.
+        </p>
+      </div>
+      <div class="readout-log" id="readoutLog"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PREDICTION DASHBOARD ============ -->
+<section class="dashboard" id="dashboard">
+  <div class="section-heading">
+    <span class="eyebrow">02 — Prediction Dashboard</span>
+    <h2>Result</h2>
+    <p>Every prediction ships with its full probability distribution, not just a single guess.</p>
+  </div>
+
+  <div id="dashboardEmpty" class="glass-panel dashboard-empty">
+    <div class="empty-icon">✦</div>
+    <p>No specimen analyzed yet. Upload an image above to populate this dashboard.</p>
+  </div>
+
+  <div id="dashboardResult" class="dashboard-grid" hidden>
+
+    <div class="glass-panel result-main">
+      <div class="result-photo" id="resultPhoto">
+        <span class="result-photo-note">Reference photo not yet available for this class —
+          <a href="#contact">species image library pending</a>.</span>
+      </div>
+      <div class="result-info">
+        <span class="eyebrow">Top Match</span>
+        <h3 class="species-scientific" id="speciesScientific">—</h3>
+        <p class="species-common" id="speciesCommon">Common name pending taxonomy mapping</p>
+        <div class="confidence-hero">
+          <span class="confidence-number" id="confidenceNumber">0</span><span class="confidence-percent">%</span>
+          <span class="confidence-label">model confidence</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="glass-panel result-bars">
+      <span class="eyebrow">Top 5 Candidates</span>
+      <ol class="bar-list" id="barList"></ol>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ CARBON INTELLIGENCE (placeholder) ============ -->
+<section class="carbon" id="carbon">
+  <div class="section-heading">
+    <span class="eyebrow">03 — Carbon Intelligence</span>
+    <h2>Biomass &amp; carbon estimate</h2>
+    <p>Planned: above-ground biomass, carbon stock, and CO₂ equivalent derived from species and canopy measurements.</p>
+  </div>
+
+  <div class="glass-panel pending-panel">
+    <div class="pending-gauges">
+      <div class="gauge-mock">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="gauge-track"/><circle cx="60" cy="60" r="52" class="gauge-fill-pending"/></svg>
+        <span>Biomass</span>
+      </div>
+      <div class="gauge-mock">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="gauge-track"/><circle cx="60" cy="60" r="52" class="gauge-fill-pending"/></svg>
+        <span>Carbon Stock</span>
+      </div>
+      <div class="gauge-mock">
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="gauge-track"/><circle cx="60" cy="60" r="52" class="gauge-fill-pending"/></svg>
+        <span>CO₂ Equivalent</span>
+      </div>
+    </div>
+    <div class="pending-note">
+      <span class="pending-badge">Model not yet connected</span>
+      <p>This panel is wired into the layout and ready to receive a biomass/carbon
+        estimation model. No figures are shown until real inference is connected —
+        nothing here is estimated or fabricated.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ AI KNOWLEDGE (placeholder) ============ -->
+<section class="knowledge" id="knowledge">
+  <div class="section-heading">
+    <span class="eyebrow">04 — AI Knowledge Engine</span>
+    <h2>Ask about the identified species</h2>
+    <p>Once a specimen is identified, this chat is grounded in your RAG knowledge base for that species only — ask about uses, ecology, or conservation status.</p>
+  </div>
+
+  <div class="glass-panel knowledge-chat-panel">
+    <div class="readout-header">
+      <span class="pulse-dot" id="knowledgePulse"></span>
+      <span id="knowledgeStatus">Identify a specimen above to start chatting</span>
+    </div>
+
+    <div class="chat-thread" id="chatThread">
+      <div class="chat-bubble assistant">
+        I'll introduce myself here once a specimen has been identified —
+        ask me anything about it afterward, grounded in the species
+        documentation you've built into the knowledge base.
+      </div>
+    </div>
+
+    <form id="chatForm" class="chat-form">
+      <input type="text" id="chatInput" placeholder="Identify a specimen first…" autocomplete="off" disabled>
+      <button type="submit" id="chatSend" aria-label="Send question" disabled>
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </form>
+  </div>
+</section>
+
+<!-- ============ SIMILAR IMAGES (placeholder) ============ -->
+<section class="gallery" id="gallery">
+  <div class="section-heading">
+    <span class="eyebrow">05 — Similar Specimens</span>
+    <h2>Visual matches</h2>
+    <p>Planned: leaf, bark, fruit, and canopy photos from the training set that resemble the uploaded specimen.</p>
+  </div>
+  <div class="gallery-grid">
+    <div class="gallery-tile pending"><span>Leaf</span></div>
+    <div class="gallery-tile pending"><span>Bark</span></div>
+    <div class="gallery-tile pending"><span>Fruit</span></div>
+    <div class="gallery-tile pending"><span>Canopy</span></div>
+  </div>
+  <p class="gallery-note">Reference image library not yet connected — tiles will populate once
+    a labeled photo set is linked to each species.</p>
+</section>
+
+<!-- ============ ABOUT ============ -->
+<section class="about" id="about">
+  <div class="section-heading">
+    <span class="eyebrow">About</span>
+    <h2>A field tool built for tropical forestry</h2>
+  </div>
+  <div class="about-grid">
+    <div class="glass-panel about-card">
+      <h4>What it does</h4>
+      <p>Classifies tropical African tree species from a single photograph using a
+        convolutional neural network trained on field-collected specimen imagery.</p>
+    </div>
+    <div class="glass-panel about-card">
+      <h4>Who it's for</h4>
+      <p>Researchers, field technicians, and students working on forest inventory,
+        biodiversity monitoring, and species conservation across the region.</p>
+    </div>
+    <div class="glass-panel about-card">
+      <h4>What's next</h4>
+      <p>Carbon stock estimation and an LLM-powered knowledge layer are in development
+        and will connect directly into the dashboard shown above.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer class="site-footer" id="contact">
+  <div class="footer-top">
+    <div class="footer-brand">
+      <span class="logo-mark">◈</span>
+      <span class="logo-text">Tree<strong>Intel</strong></span>
+      <p>AI-powered tree identification &amp; forestry research</p>
+    </div>
+    <div class="footer-links">
+      <div>
+        <h5>Platform</h5>
+        <a href="#scan">Identify a Tree</a>
+        <a href="#dashboard">Species Dashboard</a>
+        <a href="#carbon">Carbon Intelligence</a>
+      </div>
+      <div>
+        <h5>Project</h5>
+        <a href="#about">About</a>
+        <a href="#knowledge">AI Knowledge</a>
+      </div>
+      <div>
+        <h5>Partners</h5>
+        <span class="footer-logo-slot">TreeIntel logo — pending</span>
+        <span class="footer-logo-slot">University of Ibadan logo — pending</span>
+        <span class="footer-logo-slot">TreeClub / IFSA logo — pending</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>Model served locally via Flask &amp; TensorFlow/Keras</span>
+    <span>© 2026 TreeIntel</span>
+  </div>
+</footer>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

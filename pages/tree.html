@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="UTF-8">
+
+<title>Tree Identification</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+
+<nav>
+
+<div class="logo">
+
+🌿 TreeIntel
+
+</div>
+
+<ul>
+
+<li><a href="/">Home</a></li>
+
+</ul>
+
+</nav>
+
+<div class="services">
+
+<h1>Tree Species Identification</h1>
+
+<p>
+
+Upload an image of a tree, leaf or bark.
+
+</p>
+
+<br>
+
+<input
+
+type="file"
+
+id="imageInput"
+
+accept="image/*"
+
+>
+
+<br><br>
+
+<img
+
+id="preview"
+
+width="300"
+
+style="display:none;border-radius:10px;"
+
+>
+
+<br><br>
+
+<button onclick="predictImage()">
+
+Predict Species
+
+</button>
+
+<br><br>
+
+<h2 id="species"></h2>
+
+<h3 id="confidence"></h3>
+
+</div>
+
+<script>
+
+const imageInput = document.getElementById("imageInput");
+
+const preview = document.getElementById("preview");
+
+imageInput.onchange = function(){
+
+preview.src = URL.createObjectURL(
+
+this.files[0]
+
+);
+
+preview.style.display="block";
+
+};
+
+async function predictImage(){
+
+const file = imageInput.files[0];
+
+if(!file){
+
+alert("Please select an image.");
+
+return;
+
+}
+
+const formData = new FormData();
+
+formData.append(
+
+"image",
+
+file
+
+);
+
+const response = await fetch(
+
+"/predict",
+
+{
+
+method:"POST",
+
+body:formData
+
+}
+
+);
+
+const result = await response.json();
+
+document.getElementById(
+
+"species"
+
+).innerHTML=
+
+"Species: "+result.species;
+
+document.getElementById(
+
+"confidence"
+
+).innerHTML=
+
+"Confidence: "+result.confidence.toFixed(2)+"%";
+
+}
+
+
+
+</script>
+
+</body>
+
+</html>

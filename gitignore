@@ -1,0 +1,18 @@
+# Environment / secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Generated knowledge base (rebuildable via scripts/build_knowledge_base.py)
+knowledge_base/
+
+# Model file (often too large for git -- track via Git LFS or cloud storage instead)
+models/*.h5
+
+# OS / editor
+.DS_Store
+.vscode/
