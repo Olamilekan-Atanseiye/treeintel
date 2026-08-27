@@ -34,6 +34,22 @@ BASE_DIR = Path(__file__).resolve().parent
 #   models/Image_classifier_model.h5
 MODEL_PATH = BASE_DIR / "models" / "Image_classifier_model.h5"
 
+HF_REPO_ID = "Olamilekan-Atanseiye/treeintel-model"
+HF_FILENAME = "Image_classifier_model.h5"
+
+if not MODEL_PATH.exists():
+    print("Model not found locally. Downloading from Hugging Face...")
+
+    MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    downloaded_model = hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=HF_FILENAME,
+        local_dir=str(MODEL_PATH.parent)
+    )
+
+    print("Model downloaded to:", downloaded_model)
+
 IMG_SIZE = (224, 224)
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "webp"}
 MAX_CONTENT_LENGTH = 25 * 1024 * 1024  # 25 MB upload limit
