@@ -15,7 +15,7 @@ import io
 import os
 import uuid
 from pathlib import Path
-
+from huggingface_hub import hf_hub_download
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from PIL import Image
