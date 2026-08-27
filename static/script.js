@@ -95,6 +95,12 @@ const chatSend = document.getElementById("chatSend");
 let selectedFile = null;
 let currentSpecies = null;
 
+// Prevent the browser from opening a dropped image as a new page when the
+// pointer lands just outside the drop target.
+["dragover", "drop"].forEach((evt) =>
+  window.addEventListener(evt, (e) => e.preventDefault())
+);
+
 dropzone.addEventListener("click", () => fileInput.click());
 dropzone.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
@@ -150,45 +156,29 @@ identifyBtn.addEventListener("click", async () => {
   formData.append("image", selectedFile);
 
   try {
-const response = await fetch("/predict", {
-    method: "POST",
-    body: formData
-});
+    const response = await fetch("/predict", {
+      method: "POST",
+      body: formData,
+    });
 
-const responseText = await response.text();
+    const responseText = await response.text();
+    let data;
 
-let data;
+    try {
+      data = responseText ? JSON.parse(responseText) : {};
+    } catch {
+      throw new Error(
+        `Server returned invalid JSON (HTTP ${response.status}). Response: ${
+          responseText || "[empty response]"
+        }`
+      );
+    }
 
-try {
-    data = responseText ? JSON.parse(responseText) : {};
-} catch (parseError) {
-    throw new Error(
-        `Server returned invalid JSON (HTTP ${response.status}). Response: ${responseText || "[empty response]"}`
-    );
-}
-
-if (!response.ok) {
-    throw new Error(
+    if (!response.ok) {
+      throw new Error(
         data.error || `Prediction failed (HTTP ${response.status}).`
-    );
-}
-console.log("Prediction HTTP status:", response.status);
-console.log("Prediction raw response:", responseText);
-
-let data;
-
-try {
-    data = JSON.parse(responseText);
-} catch (jsonError) {
-    throw new Error(
-        `Server returned an invalid response (HTTP ${response.status}). ` +
-        `Response: ${responseText || "[empty response]"}`
-    );
-}
-
-if (!response.ok) {
-    throw new Error(data.error || "Prediction failed.");
-}
+      );
+    }
 
     const elapsedMs = Math.round(performance.now() - t0);
     await logReadout(data, elapsedMs);
